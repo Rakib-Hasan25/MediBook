@@ -19,6 +19,8 @@ app.use(express.json())
 app.get('/', (_, res) => {
   res.send("Root is working")
 })
+
+
 app.use('/auth', authRouter)
 app.use('/auth/patients', patientAuthRouter)
 app.use('/auth/doctors', doctorAuthRouter)
