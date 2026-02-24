@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isDoctor() {
+      return isSignedIn() && request.auth.token.role == 'doctor';
+    }
+
+    function isVerifiedDoctor() {
+      return isDoctor() && request.auth.token.verified == true;
+    }
+
+    function isPatient() {
+      return isSignedIn() && request.auth.token.role == 'patient';
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ── posts collection ──────────────────────────────────
+    match /posts/{postId} {
+      allow read: if isVerifiedDoctor();   // only verified doctors can read
+      allow write: if false;               // nobody from frontend can write (backend only)
+    }
+
+    // ── users collection ──────────────────────────────────
+    match /users/{uid} {
+      allow read: if isOwner(uid);         // users can only read their own profile
+      allow write: if false;               // backend handles all writes
+    }
+
+    // ── doctor_applications collection ────────────────────
+    match /doctor_applications/{uid} {
+      allow read, write: if false;         // backend only, no client access
+    }
+
+    // ── Block everything else ─────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+  }
+}
