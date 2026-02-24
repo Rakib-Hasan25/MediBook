@@ -1,0 +1,19 @@
+# Firebase App Hosting configuration for Medibook frontend.
+# Public browser config uses VITE_* variables.
+# Sensitive values should use Secret Manager via `secret:` and non-VITE names.
+
+
+env:
+  - variable: PORT
+    value: 8080
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: FIREBASE_STORAGE_BUCKET
+    value: medibook-3624a.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  

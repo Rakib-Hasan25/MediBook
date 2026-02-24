@@ -9,7 +9,7 @@ import uploadRouter from './routes/upload.js'
 dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT || 4000
+const PORT = process.env.PORT || 8080
 
 app.use(helmet())
 app.use(cors({ origin: '*' }))
