@@ -1,0 +1,59 @@
+# Firebase App Hosting configuration for Medibook frontend.
+# Public browser config uses VITE_* variables.
+# Sensitive values should use Secret Manager via `secret:` and non-VITE names.
+
+env:
+  - variable: VITE_API_BASE_URL
+    value: http://localhost:4001
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: VITE_FIREBASE_API_KEY
+    value: AIzaSyDgqhP7OYIk866G00d9m3SAJDIVUZ-DFgg
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: VITE_FIREBASE_AUTH_DOMAIN
+    value: medibook-3624a.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: VITE_FIREBASE_PROJECT_ID
+    value: medibook-3624a
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: VITE_FIREBASE_STORAGE_BUCKET
+    value: medibook-3624a.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: VITE_FIREBASE_MESSAGING_SENDER_ID
+    value: "65063084488"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: VITE_FIREBASE_APP_ID
+    value: 1:65063084488:web:d521c4ebd38e26c479a0fd
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Runtime-only secret placeholders (examples).
+  # Use these only if your App Hosting server runtime needs secrets.
+  # Do not prefix secrets with VITE_, otherwise they can become browser-visible.
+  - variable: SERVER_API_KEY
+    secret: medibook_server_api_key
+    availability:
+      - RUNTIME
+
+  - variable: INTERNAL_SERVICE_TOKEN
+    secret: medibook_internal_service_token
+    availability:
+      - RUNTIME
