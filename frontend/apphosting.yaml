@@ -48,12 +48,12 @@ env:
   # Runtime-only secret placeholders (examples).
   # Use these only if your App Hosting server runtime needs secrets.
   # Do not prefix secrets with VITE_, otherwise they can become browser-visible.
-  - variable: SERVER_API_KEY
-    secret: medibook_server_api_key
-    availability:
-      - RUNTIME
+  # - variable: SERVER_API_KEY
+  #   secret: medibook_server_api_key
+  #   availability:
+  #     - RUNTIME
 
-  - variable: INTERNAL_SERVICE_TOKEN
-    secret: medibook_internal_service_token
-    availability:
-      - RUNTIME
+  # - variable: INTERNAL_SERVICE_TOKEN
+  #   secret: medibook_internal_service_token
+  #   availability:
+  #     - RUNTIME
