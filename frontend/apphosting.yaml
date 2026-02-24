@@ -2,6 +2,10 @@
 # Public browser config uses VITE_* variables.
 # Sensitive values should use Secret Manager via `secret:` and non-VITE names.
 
+scripts:
+  buildCommand: npm ci && npm run build
+  runCommand: npm run preview -- --host 0.0.0.0 --port $PORT
+
 env:
   - variable: VITE_API_BASE_URL
     value: http://localhost:4001
