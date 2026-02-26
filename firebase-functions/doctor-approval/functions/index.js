@@ -1,6 +1,7 @@
 const {setGlobalOptions} = require("firebase-functions/v2");
 const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/firestore");
 const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const {runDoctorVerification} = require("./helpers/doctorVerificationService");
@@ -9,6 +10,7 @@ const {
   processPaymentAction,
   processPaymentWebhook,
 } = require("./helpers/paymentGatewayService");
+const {cleanupFailedOrDelayedPayments} = require("./helpers/paymentCleanupService");
 
 setGlobalOptions({maxInstances: 10});
 admin.initializeApp();
@@ -79,4 +81,10 @@ exports.paymentWebhook = onRequest({secrets: PAYMENT_SECRETS}, async (req, res) 
     }
     return res.status(500).send(error.message || "Webhook processing failed");
   }
+});
+
+exports.cleanupFailedPaymentsAndAppointments = onSchedule("every 1 minutes", async () => {
+  const result = await cleanupFailedOrDelayedPayments(logger);
+  logger.info("Payment cleanup schedule completed.", result);
+  return null;
 });

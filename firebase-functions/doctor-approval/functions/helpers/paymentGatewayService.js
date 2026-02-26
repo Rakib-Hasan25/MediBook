@@ -182,17 +182,6 @@ async function processPaymentWebhook(body) {
       status: "failed",
     });
 
-    const slotId = appointmentDoc.data()?.slotId;
-    if (!slotId) return;
-
-    const slotRef = db.collection("slots").doc(slotId);
-    const slotDoc = await transaction.get(slotRef);
-    if (!slotDoc.exists) return;
-
-    const bookedCount = Number(slotDoc.data()?.bookedCount) || 0;
-    transaction.update(slotRef, {
-      bookedCount: Math.max(bookedCount - 1, 0),
-    });
   });
 
   return "Webhook processed";
