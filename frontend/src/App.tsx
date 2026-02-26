@@ -8,7 +8,56 @@ import PatientDashboard from './pages/PatientDashboard'
 import PatientDoctorDetails from './pages/PatientDoctorDetails'
 import PendingApproval from './pages/PendingApproval'
 import type { UserRole } from './lib/api'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import {
+  getDoctorRouteAccessStatus,
+  type DoctorRouteAccessStatus,
+} from './services/doctorRouteAccessService'
+
+function useDoctorRouteAccess({
+  shouldCheck,
+  doctorUid,
+}: {
+  shouldCheck: boolean
+  doctorUid: string | null
+}) {
+  const [resolvedAccess, setResolvedAccess] = useState<{
+    uid: string
+    status: DoctorRouteAccessStatus
+  } | null>(null)
+
+  useEffect(() => {
+    if (!shouldCheck || !doctorUid) {
+      return
+    }
+
+    let isMounted = true
+
+    getDoctorRouteAccessStatus()
+      .then(nextStatus => {
+        if (!isMounted) return
+        setResolvedAccess({ uid: doctorUid, status: nextStatus })
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setResolvedAccess({ uid: doctorUid, status: 'pending' })
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [shouldCheck, doctorUid])
+
+  if (!shouldCheck || !doctorUid) {
+    return 'loading' as const
+  }
+
+  if (!resolvedAccess || resolvedAccess.uid !== doctorUid) {
+    return 'loading' as const
+  }
+
+  return resolvedAccess.status
+}
 
 function ProtectedRoute({
   children,
@@ -18,17 +67,35 @@ function ProtectedRoute({
   requiredRole: UserRole
 }) {
   const { user, loading } = useAuth()
+  const shouldCheckDoctorAccess =
+    requiredRole === 'doctor' && user?.role === 'doctor' && user.emailStatus === 'verified'
+  const doctorAccessStatus = useDoctorRouteAccess({
+    shouldCheck: shouldCheckDoctorAccess,
+    doctorUid: user?.uid || null,
+  })
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>
   }
 
   if (!user) return <Navigate to="/signin" replace />
-  if (requiredRole === 'doctor' && user.accountStatus !== 'active') {
+  if (requiredRole === 'doctor') {
     if (user.emailStatus === 'unverified') {
       return <Navigate to="/verify-email" replace />
     }
-    return <Navigate to="/pending-approval" replace />
+    if (user.role !== 'doctor') {
+      return <Navigate to={`/dashboard/${user.role}`} replace />
+    }
+    if (doctorAccessStatus === 'loading') {
+      return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    }
+    if (doctorAccessStatus === 'verified') {
+      return <>{children}</>
+    }
+    if (doctorAccessStatus === 'pending') {
+      return <Navigate to="/pending-approval" replace />
+    }
+    return <Navigate to="/signin" replace />
   }
   if (requiredRole === 'patient' && user.accountStatus !== 'active') {
     return <Navigate to="/verify-email" replace />
@@ -41,8 +108,14 @@ function ProtectedRoute({
 
 function AppRoutes() {
   const { user, loading } = useAuth()
+  const shouldCheckDoctorAccess =
+    user?.role === 'doctor' && user.emailStatus === 'verified'
+  const doctorAccessStatus = useDoctorRouteAccess({
+    shouldCheck: shouldCheckDoctorAccess,
+    doctorUid: user?.uid || null,
+  })
 
-  if (loading) {
+  if (loading || (shouldCheckDoctorAccess && doctorAccessStatus === 'loading')) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>
   }
 
@@ -53,11 +126,13 @@ function AppRoutes() {
         element={
           user
             ? user.role === 'doctor'
-              ? user.accountStatus === 'active'
-                ? <Navigate to="/dashboard/doctor" replace />
-                : user.emailStatus === 'unverified'
-                  ? <Navigate to="/verify-email" replace />
-                  : <Navigate to="/pending-approval" replace />
+              ? user.emailStatus === 'unverified'
+                ? <Navigate to="/verify-email" replace />
+                : doctorAccessStatus === 'verified'
+                  ? <Navigate to="/dashboard/doctor" replace />
+                  : doctorAccessStatus === 'pending'
+                    ? <Navigate to="/pending-approval" replace />
+                    : <Navigate to="/signin" replace />
               : user.accountStatus === 'active'
                 ? <Navigate to="/dashboard/patient" replace />
                 : <Navigate to="/verify-email" replace />
@@ -71,8 +146,8 @@ function AppRoutes() {
         path="/pending-approval"
         element={
           user?.role === 'doctor' &&
-          user.accountStatus == 'active' &&
-          user.emailStatus == 'verified'
+          user.emailStatus === 'verified' &&
+          doctorAccessStatus === 'pending'
             ? <PendingApproval />
             : <Navigate to="/signin" replace />
         }

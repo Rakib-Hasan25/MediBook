@@ -51,7 +51,7 @@ export default function VerifyEmail() {
 
         setTimeout(() => {
           if (syncedUser.role === 'doctor') {
-            navigate('/dashboard/doctor')
+            navigate('/pending-approval')
           } else {
             navigate('/dashboard/patient')
           }
