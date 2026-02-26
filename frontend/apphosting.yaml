@@ -12,6 +12,12 @@ env:
       - BUILD
       - RUNTIME
 
+  - variable: VITE_PAYMENT_GATWAY_URL
+    value: https://medibook-payment-gatway--medibook-3624a.us-east4.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME    
+
   - variable: VITE_FIREBASE_API_KEY
     value: AIzaSyDgqhP7OYIk866G00d9m3SAJDIVUZ-DFgg
     availability:
