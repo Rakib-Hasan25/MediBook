@@ -6,6 +6,9 @@ import authRouter from './routes/auth.js'
 import patientAuthRouter from './routes/patientAuth.js'
 import doctorAuthRouter from './routes/doctorAuth.js'
 import uploadRouter from './routes/upload.js'
+import doctorDashboardRouter from './routes/doctorDashboard.js'
+import patientDashboardRouter from './routes/patientDashboard.js'
+import paymentGatewayRouter from './routes/paymentGateway.js'
 dotenv.config()
 
 const app = express()
@@ -25,6 +28,9 @@ app.use('/auth', authRouter)
 app.use('/auth/patients', patientAuthRouter)
 app.use('/auth/doctors', doctorAuthRouter)
 app.use('/uploads', uploadRouter)
+app.use('/doctor-dashboard', doctorDashboardRouter)
+app.use('/patient-dashboard', patientDashboardRouter)
+app.use('/payment-gateway', paymentGatewayRouter)
 
 
 

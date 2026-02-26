@@ -1,283 +1,521 @@
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Activity,
-  Bell,
-  LogOut,
-  Calendar,
-  Users,
-  Star,
-  CheckCircle,
-  Clock,
-  ChevronRight,
-  User,
-  Phone,
-  FileText,
-  Stethoscope,
-} from 'lucide-react'
+import { Calendar, Clock3, LogOut, PlusCircle, RefreshCw } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { usePosts } from '@/hooks/usePosts'
-const appointments = [
-  { id: 1, patient: 'Sarah Johnson', age: 32, time: '09:00 AM', type: 'General Checkup', status: 'completed', avatar: 'SJ' },
-  { id: 2, patient: 'Mike Chen', age: 45, time: '10:30 AM', type: 'Blood Pressure Review', status: 'in-progress', avatar: 'MC' },
-  { id: 3, patient: 'Emma Davis', age: 28, time: '11:00 AM', type: 'Post-Surgery Follow-up', status: 'completed', avatar: 'ED' },
-  { id: 4, patient: 'James Wilson', age: 56, time: '02:00 PM', type: 'Diabetes Consultation', status: 'upcoming', avatar: 'JW' },
-  { id: 5, patient: 'Lisa Brown', age: 40, time: '03:30 PM', type: 'Routine Checkup', status: 'upcoming', avatar: 'LB' },
-]
+import {
+  createDoctorSlot,
+  getDoctorAppointments,
+  getDoctorSlots,
+  type AppointmentStatus,
+  type AppointmentTimeframe,
+  type DoctorAppointment,
+  type DoctorSlot,
+  type SlotType,
+} from '@/services/doctorDashboardService'
 
-const recentPatients = [
-  { name: 'Robert Park', condition: 'Hypertension', lastVisit: '2 days ago', avatar: 'RP' },
-  { name: 'Alice Morgan', condition: 'Diabetes Type 2', lastVisit: '5 days ago', avatar: 'AM' },
-  { name: 'David Lee', condition: 'Asthma', lastVisit: '1 week ago', avatar: 'DL' },
-  { name: 'Grace Kim', condition: 'Migraine', lastVisit: '2 weeks ago', avatar: 'GK' },
-]
-
-const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-  upcoming: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Upcoming' },
-  'in-progress': { bg: 'bg-amber-50', text: 'text-amber-700', label: 'In Progress' },
-  completed: { bg: 'bg-green-50', text: 'text-green-700', label: 'Completed' },
+const STATUS_LABEL: Record<Exclude<AppointmentStatus, 'all'>, string> = {
+  pending_payment: 'Pending Payment',
+  confirmed: 'Confirmed',
+  failed: 'Failed',
+  expired: 'Expired',
 }
 
-const avatarColors = [
-  'from-blue-400 to-blue-600',
-  'from-violet-400 to-violet-600',
-  'from-rose-400 to-rose-600',
-  'from-amber-400 to-amber-600',
-  'from-teal-400 to-teal-600',
+const STATUS_BADGE_CLASS: Record<Exclude<AppointmentStatus, 'all'>, string> = {
+  pending_payment: 'bg-amber-100 text-amber-800',
+  confirmed: 'bg-emerald-100 text-emerald-800',
+  failed: 'bg-red-100 text-red-800',
+  expired: 'bg-slate-200 text-slate-700',
+}
+
+const APPOINTMENT_STATUS_OPTIONS: { label: string; value: AppointmentStatus }[] = [
+  { label: 'All Status', value: 'all' },
+  { label: 'Pending Payment', value: 'pending_payment' },
+  { label: 'Confirmed', value: 'confirmed' },
+  { label: 'Failed', value: 'failed' },
+  { label: 'Expired', value: 'expired' },
 ]
+
+const TIMEFRAME_OPTIONS: { label: string; value: AppointmentTimeframe }[] = [
+  { label: 'All', value: 'all' },
+  { label: 'Current', value: 'current' },
+  { label: 'Previous', value: 'previous' },
+]
+
+type SlotForm = {
+  date: string
+  startTime: string
+  endTime: string
+  capacity: number
+  type: SlotType
+  notes: string
+}
+
+function formatDateTime(date: string | null, time: string | null) {
+  if (!date || !time) return 'Not available'
+  const value = new Date(`${date}T${time}:00`)
+  if (Number.isNaN(value.getTime())) return `${date} ${time}`
+  return value.toLocaleString([], {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function formatIso(value: string | null) {
+  if (!value) return 'N/A'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleString()
+}
 
 export default function DoctorDashboard() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
-  const { posts, loading, error } = usePosts()   
-  const handleSignOut = () => {
-    signOut()
+
+  const [slotForm, setSlotForm] = useState<SlotForm>({
+    date: '',
+    startTime: '',
+    endTime: '',
+    capacity: 1,
+    type: 'online',
+    notes: '',
+  })
+  const [appointments, setAppointments] = useState<DoctorAppointment[]>([])
+  const [slots, setSlots] = useState<DoctorSlot[]>([])
+  const [statusFilter, setStatusFilter] = useState<AppointmentStatus>('all')
+  const [timeframeFilter, setTimeframeFilter] = useState<AppointmentTimeframe>('current')
+  const [counts, setCounts] = useState({ total: 0, current: 0, previous: 0 })
+
+  const [loadingAppointments, setLoadingAppointments] = useState(true)
+  const [submittingSlot, setSubmittingSlot] = useState(false)
+  const [slotMessage, setSlotMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const handleSignOut = async () => {
+    await signOut()
     navigate('/signin')
   }
 
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+  const loadAppointments = async () => {
+    try {
+      setLoadingAppointments(true)
+      setErrorMessage('')
+      const data = await getDoctorAppointments({
+        status: statusFilter,
+        timeframe: timeframeFilter,
+      })
+      setAppointments(data.appointments)
+      setCounts(data.counts)
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to load appointments')
+    } finally {
+      setLoadingAppointments(false)
+    }
+  }
+
+  const loadSlots = async () => {
+    try {
+      const data = await getDoctorSlots()
+      setSlots(data.slots)
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to load slots')
+    }
+  }
+
+  useEffect(() => {
+    void loadAppointments()
+  }, [statusFilter, timeframeFilter])
+
+  useEffect(() => {
+    void loadSlots()
+  }, [])
+
+  const handleSlotInput = <K extends keyof SlotForm>(key: K, value: SlotForm[K]) => {
+    setSlotMessage('')
+    setErrorMessage('')
+    setSlotForm(prev => ({ ...prev, [key]: value }))
+  }
+
+  const handleCreateSlot = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSubmittingSlot(true)
+    setSlotMessage('')
+    setErrorMessage('')
+
+    try {
+      await createDoctorSlot({
+        date: slotForm.date,
+        startTime: slotForm.startTime,
+        endTime: slotForm.endTime,
+        capacity: slotForm.capacity,
+        type: slotForm.type,
+        notes: slotForm.notes,
+      })
+
+      setSlotMessage('Slot created successfully.')
+      setSlotForm(prev => ({
+        ...prev,
+        startTime: '',
+        endTime: '',
+        capacity: 1,
+        notes: '',
+      }))
+      await loadAppointments()
+      await loadSlots()
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to create slot')
+    } finally {
+      setSubmittingSlot(false)
+    }
+  }
+
+  const headerStats = useMemo(
+    () => [
+      { label: 'Total Appointments', value: counts.total },
+      { label: 'Current', value: counts.current },
+      { label: 'Previous', value: counts.previous },
+    ],
+    [counts],
+  )
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* ── Top Navigation ── */}
-      <nav className="bg-white border-b border-slate-100 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-slate-100">
+      <nav className="bg-white border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Activity className="w-5 h-5 text-white" />
+            <Calendar className="w-5 h-5 text-blue-600" />
+            <div>
+              <h1 className="text-slate-900 font-semibold">Doctor Dashboard</h1>
+              <p className="text-xs text-slate-500">Manage slots and appointments</p>
             </div>
-            <span className="text-slate-900 text-lg font-bold">MediBook</span>
-            <span className="hidden sm:block text-slate-200 mx-1">|</span>
-            <span className="hidden sm:block text-slate-400 text-sm">Doctor Portal</span>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button className="relative p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition cursor-pointer">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
-
-            <div className="flex items-center gap-3 pl-2 border-l border-slate-100">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                {user?.name?.charAt(0).toUpperCase() ?? 'D'}
-              </div>
-              <div className="hidden sm:block">
-                <div className="text-sm font-semibold text-slate-800 leading-tight">Dr. {user?.name}</div>
-                <div className="text-xs text-slate-400">General Physician</div>
-              </div>
-            </div>
-
+          <div className="flex items-center gap-4">
+            <span className="hidden sm:block text-sm text-slate-600">{user?.name || 'Doctor'}</span>
             <button
               onClick={handleSignOut}
-              className="flex items-center gap-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition text-sm font-medium cursor-pointer"
+              className="inline-flex items-center gap-2 text-slate-600 hover:text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition text-sm font-medium cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:block">Sign Out</span>
+              Sign Out
             </button>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* ── Welcome Header ── */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">
-            Good morning, Dr. {user?.name} 👋
-          </h1>
-          <p className="text-slate-500 mt-1 text-sm">{today}</p>
-        </div>
-
-        {/* ── Stats Cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
-            {
-              label: 'Total Patients',
-              value: '248',
-              sub: '+12 this month',
-              icon: Users,
-              iconBg: 'bg-blue-100',
-              iconColor: 'text-blue-600',
-              subColor: 'text-blue-600',
-            },
-            {
-              label: "Today's Appointments",
-              value: '12',
-              sub: '3 remaining',
-              icon: Calendar,
-              iconBg: 'bg-violet-100',
-              iconColor: 'text-violet-600',
-              subColor: 'text-violet-600',
-            },
-            {
-              label: 'Completed Today',
-              value: '7',
-              sub: 'Out of 12',
-              icon: CheckCircle,
-              iconBg: 'bg-green-100',
-              iconColor: 'text-green-600',
-              subColor: 'text-green-600',
-            },
-            {
-              label: 'Average Rating',
-              value: '4.9★',
-              sub: 'Based on 318 reviews',
-              icon: Star,
-              iconBg: 'bg-amber-100',
-              iconColor: 'text-amber-600',
-              subColor: 'text-amber-600',
-            },
-          ].map(({ label, value, sub, icon: Icon, iconBg, iconColor, subColor }) => (
-            <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className={`w-10 h-10 ${iconBg} rounded-xl flex items-center justify-center mb-4`}>
-                <Icon className={`w-5 h-5 ${iconColor}`} />
-              </div>
-              <div className="text-2xl font-bold text-slate-900 mb-1">{value}</div>
-              <div className="text-xs text-slate-500 mb-1.5">{label}</div>
-              <div className={`text-xs font-medium ${subColor}`}>{sub}</div>
+      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {headerStats.map(item => (
+            <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4">
+              <p className="text-sm text-slate-500">{item.label}</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{item.value}</p>
             </div>
           ))}
         </div>
 
-        {/* ── Main Grid ── */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Today's Schedule */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-              <div>
-                <h2 className="font-bold text-slate-900">Today's Schedule</h2>
-                <p className="text-xs text-slate-400 mt-0.5">{appointments.length} appointments</p>
-              </div>
-              <button className="text-blue-600 text-sm font-medium hover:underline flex items-center gap-1 cursor-pointer">
-                View all <ChevronRight className="w-4 h-4" />
-              </button>
+        <section className="grid grid-cols-1 lg:grid-cols-[380px,1fr] gap-6">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 h-fit">
+            <div className="flex items-center gap-2 mb-4">
+              <PlusCircle className="w-5 h-5 text-blue-600" />
+              <h2 className="font-semibold text-slate-900">Create New Slot</h2>
             </div>
 
-            <div className="divide-y divide-slate-50">
-              {appointments.map((appt, i) => {
-                const cfg = statusConfig[appt.status]
-                return (
-                  <div key={appt.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors">
-                    <div
-                      className={`w-10 h-10 bg-gradient-to-br ${avatarColors[i % avatarColors.length]} rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
-                    >
-                      {appt.avatar}
+            <form onSubmit={handleCreateSlot} className="space-y-4">
+              <div>
+                <label htmlFor="slot-date" className="block text-sm font-medium text-slate-700 mb-1">
+                  Date
+                </label>
+                <input
+                  id="slot-date"
+                  type="date"
+                  value={slotForm.date}
+                  onChange={event => handleSlotInput('date', event.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="start-time" className="block text-sm font-medium text-slate-700 mb-1">
+                    Start Time
+                  </label>
+                  <input
+                    id="start-time"
+                    type="time"
+                    value={slotForm.startTime}
+                    onChange={event => handleSlotInput('startTime', event.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="end-time" className="block text-sm font-medium text-slate-700 mb-1">
+                    End Time
+                  </label>
+                  <input
+                    id="end-time"
+                    type="time"
+                    value={slotForm.endTime}
+                    onChange={event => handleSlotInput('endTime', event.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="capacity" className="block text-sm font-medium text-slate-700 mb-1">
+                    Capacity
+                  </label>
+                  <input
+                    id="capacity"
+                    type="number"
+                    min={1}
+                    value={slotForm.capacity}
+                    onChange={event => handleSlotInput('capacity', Number(event.target.value))}
+                    required
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="slot-type" className="block text-sm font-medium text-slate-700 mb-1">
+                    Type
+                  </label>
+                  <select
+                    id="slot-type"
+                    value={slotForm.type}
+                    onChange={event => handleSlotInput('type', event.target.value as SlotType)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="online">Online</option>
+                    <option value="offline">Offline</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="notes" className="block text-sm font-medium text-slate-700 mb-1">
+                  Notes (optional)
+                </label>
+                <textarea
+                  id="notes"
+                  rows={3}
+                  value={slotForm.notes}
+                  onChange={event => handleSlotInput('notes', event.target.value)}
+                  placeholder="Example: Bring your recent reports"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingSlot}
+                className="w-full mt-2 bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60 cursor-pointer"
+              >
+                {submittingSlot ? 'Creating Slot...' : 'Create Slot'}
+              </button>
+            </form>
+
+            {slotMessage && <p className="text-emerald-600 text-sm mt-3">{slotMessage}</p>}
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-xl">
+            <div className="p-5 border-b border-slate-200">
+              <div className="flex flex-wrap gap-3 items-end justify-between">
+                <div>
+                  <h2 className="font-semibold text-slate-900">My Appointments</h2>
+                  <p className="text-sm text-slate-500">View current and previous appointments</p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    void loadAppointments()
+                    void loadSlots()
+                  }}
+                  className="inline-flex items-center gap-2 border border-slate-300 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 border-b border-slate-200 bg-slate-50 flex flex-wrap gap-3">
+              <div className="min-w-[180px]">
+                <label htmlFor="status-filter" className="block text-xs text-slate-500 mb-1">
+                  Filter by status
+                </label>
+                <select
+                  id="status-filter"
+                  value={statusFilter}
+                  onChange={event => setStatusFilter(event.target.value as AppointmentStatus)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {APPOINTMENT_STATUS_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="min-w-[180px]">
+                <label htmlFor="timeframe-filter" className="block text-xs text-slate-500 mb-1">
+                  Show timeframe
+                </label>
+                <select
+                  id="timeframe-filter"
+                  value={timeframeFilter}
+                  onChange={event => setTimeframeFilter(event.target.value as AppointmentTimeframe)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {TIMEFRAME_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="divide-y divide-slate-200">
+              {loadingAppointments && (
+                <div className="p-6 text-sm text-slate-500">Loading appointments...</div>
+              )}
+
+              {!loadingAppointments && appointments.length === 0 && (
+                <div className="p-8 text-center text-sm text-slate-500">
+                  No appointments found for the selected filters.
+                </div>
+              )}
+
+              {!loadingAppointments &&
+                appointments.map(appointment => (
+                  <div key={appointment.id} className="p-5">
+                    <div className="flex flex-wrap gap-3 justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm text-slate-500">Appointment ID</p>
+                        <p className="font-medium text-slate-900">{appointment.id}</p>
+                      </div>
+                      <span
+                        className={`h-fit px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_BADGE_CLASS[appointment.status]}`}
+                      >
+                        {STATUS_LABEL[appointment.status]}
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-slate-800 text-sm truncate">{appt.patient}</div>
-                      <div className="text-xs text-slate-400 mt-0.5 truncate">
-                        {appt.type} · Age {appt.age}
+
+                    <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                      <div className="bg-slate-50 rounded-lg p-3">
+                        <p className="text-slate-500">Patient ID</p>
+                        <p className="text-slate-900 font-medium mt-1">{appointment.patientId || 'N/A'}</p>
+                      </div>
+                      <div className="bg-slate-50 rounded-lg p-3">
+                        <p className="text-slate-500">Slot Time</p>
+                        <p className="text-slate-900 font-medium mt-1">
+                          {formatDateTime(appointment.slot?.date || null, appointment.slot?.startTime || null)}
+                        </p>
+                      </div>
+                      <div className="bg-slate-50 rounded-lg p-3">
+                        <p className="text-slate-500">Mode</p>
+                        <p className="text-slate-900 font-medium mt-1 capitalize">
+                          {appointment.slot?.type || 'N/A'}
+                        </p>
+                      </div>
+                      <div className="bg-slate-50 rounded-lg p-3">
+                        <p className="text-slate-500">Created</p>
+                        <p className="text-slate-900 font-medium mt-1">{formatIso(appointment.createdAt)}</p>
+                      </div>
+                      <div className="bg-slate-50 rounded-lg p-3">
+                        <p className="text-slate-500">Expires At</p>
+                        <p className="text-slate-900 font-medium mt-1">{formatIso(appointment.expiresAt)}</p>
+                      </div>
+                      <div className="bg-slate-50 rounded-lg p-3">
+                        <p className="text-slate-500">Window</p>
+                        <p className="text-slate-900 font-medium mt-1 inline-flex items-center gap-1">
+                          <Clock3 className="w-4 h-4 text-slate-400" />
+                          {appointment.isCurrent ? 'Current' : 'Previous'}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-slate-400 text-xs flex-shrink-0">
-                      <Clock className="w-3.5 h-3.5" />
-                      {appt.time}
-                    </div>
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0 ${cfg.bg} ${cfg.text}`}>
-                      {cfg.label}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
 
-          {/* Right Column */}
-          <div className="flex flex-col gap-6">
-            {/* Quick Actions */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-              <h2 className="font-bold text-slate-900 mb-4">Quick Actions</h2>
-              <div className="space-y-1.5">
-                {[
-                  { icon: Calendar, label: 'New Appointment', color: 'bg-blue-50 text-blue-600' },
-                  { icon: User, label: 'Add Patient', color: 'bg-green-50 text-green-600' },
-                  { icon: FileText, label: 'Write Prescription', color: 'bg-violet-50 text-violet-600' },
-                  { icon: Phone, label: 'Video Consultation', color: 'bg-amber-50 text-amber-600' },
-                  { icon: Stethoscope, label: 'Patient Records', color: 'bg-rose-50 text-rose-600' },
-                ].map(({ icon: Icon, label, color }) => (
-                  <button
-                    key={label}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
-                  >
-                    <div className={`w-8 h-8 ${color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 flex-1 text-left">
-                      {label}
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400 transition-colors" />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Patients */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-bold text-slate-900">Recent Patients</h2>
-                <button className="text-blue-600 text-xs font-medium hover:underline cursor-pointer">View all</button>
-              </div>
-              <div className="space-y-3">
-                {recentPatients.map((patient, i) => (
-                  <div key={patient.name} className="flex items-center gap-3">
-                    <div
-                      className={`w-9 h-9 bg-gradient-to-br ${avatarColors[(i + 2) % avatarColors.length]} rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
-                    >
-                      {patient.avatar}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-slate-800 truncate">{patient.name}</div>
-                      <div className="text-xs text-slate-400 truncate">{patient.condition}</div>
-                    </div>
-                    <div className="text-xs text-slate-400 flex-shrink-0">{patient.lastVisit}</div>
+                    {appointment.slot?.notes && (
+                      <p className="mt-3 text-sm text-slate-600">
+                        <span className="font-medium">Notes:</span> {appointment.slot.notes}
+                      </p>
+                    )}
                   </div>
                 ))}
-              </div>
             </div>
           </div>
-        </div>
-      </div>
-      <div className="mt-8 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-        <h2 className="font-bold text-slate-900 mb-4">Medical Posts</h2>
+        </section>
 
-        {loading && <p className="text-slate-400 text-sm">Loading posts...</p>}
-
-        {error && (
-          <p className="text-red-500 text-sm">
-            Access Denied: {error}
-          </p>
-        )}
-
-        {!loading && !error && posts.map(post => (
-          <div key={post.id} className="mb-4 p-4 border border-slate-100 rounded-xl">
-            <h3 className="font-semibold text-slate-800">{post.title}</h3>
-            <p className="text-sm text-slate-500 mt-1">{post.description}</p>
+        <section className="bg-white border border-slate-200 rounded-xl">
+          <div className="p-5 border-b border-slate-200">
+            <h2 className="font-semibold text-slate-900">My Created Slots</h2>
+            <p className="text-sm text-slate-500">All slots created by you</p>
           </div>
-        ))}
-      </div>
+
+          <div className="divide-y divide-slate-200">
+            {slots.length === 0 && (
+              <div className="p-8 text-center text-sm text-slate-500">
+                No slots created yet.
+              </div>
+            )}
+
+            {slots.map(slot => (
+              <div key={slot.id} className="p-5">
+                <div className="flex flex-wrap gap-3 justify-between">
+                  <div>
+                    <p className="text-sm text-slate-500">Slot ID</p>
+                    <p className="font-medium text-slate-900">{slot.id}</p>
+                  </div>
+                  <span className="h-fit px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize">
+                    {slot.type || 'N/A'}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="text-slate-500">Date & Time</p>
+                    <p className="text-slate-900 font-medium mt-1">
+                      {formatDateTime(slot.date, slot.startTime)}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Ends at {slot.endTime || 'N/A'}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="text-slate-500">Capacity</p>
+                    <p className="text-slate-900 font-medium mt-1">{slot.capacity}</p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="text-slate-500">Booked Count</p>
+                    <p className="text-slate-900 font-medium mt-1">{slot.bookedCount}</p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="text-slate-500">Created At</p>
+                    <p className="text-slate-900 font-medium mt-1">{formatIso(slot.createdAt)}</p>
+                  </div>
+                </div>
+
+                {slot.notes && (
+                  <p className="mt-3 text-sm text-slate-600">
+                    <span className="font-medium">Notes:</span> {slot.notes}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {errorMessage && <p className="text-red-600 text-sm">{errorMessage}</p>}
+      </main>
     </div>
   )
 }

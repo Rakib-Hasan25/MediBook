@@ -5,6 +5,7 @@ import SignUp from './pages/SignUp'
 import VerifyEmail from './pages/VerifyEmail'
 import DoctorDashboard from './pages/DoctorDashboard'
 import PatientDashboard from './pages/PatientDashboard'
+import PatientDoctorDetails from './pages/PatientDoctorDetails'
 import PendingApproval from './pages/PendingApproval'
 import type { UserRole } from './lib/api'
 import type { ReactNode } from 'react'
@@ -89,6 +90,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute requiredRole="patient">
             <PatientDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/patient/:doctorId"
+        element={
+          <ProtectedRoute requiredRole="patient">
+            <PatientDoctorDetails />
           </ProtectedRoute>
         }
       />
