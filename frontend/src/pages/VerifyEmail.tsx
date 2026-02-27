@@ -98,7 +98,9 @@ export default function VerifyEmail() {
         ) : (
           <>
             <p className="text-slate-600 text-sm">
-              We sent a verification email to your inbox. Please click the link from your email to activate your account.
+              We sent a verification email to your inbox. Please click the link in your email to activate your account.
+              <br />
+              If you don't see the email, make sure to check your spam folder as well.
             </p>
             {checkedOnce && <p className="text-slate-500 text-xs">Email is not verified yet.</p>}
             <div className="text-sm">

@@ -181,43 +181,55 @@ export default function DoctorDashboard() {
   )
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <nav className="bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-slate-50">
+      <nav className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-blue-600" />
-            <div>
-              <h1 className="text-slate-900 font-semibold">Doctor Dashboard</h1>
-              <p className="text-xs text-slate-500">Manage slots and appointments</p>
+            <div className="rounded-lg bg-blue-50 p-2">
+              <Calendar className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="space-y-1">
+              <h1 className="text-lg font-semibold tracking-tight text-slate-900">Doctor Dashboard</h1>
+              <p className="text-xs text-slate-500">Manage your slots and appointment workflow</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="hidden sm:block text-sm text-slate-600">{user?.name || 'Doctor'}</span>
+          <div className="flex items-center gap-3">
+            <div className="hidden rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600 sm:block">
+              {user?.name || 'Doctor'}
+            </div>
             <button
               onClick={handleSignOut}
-              className="inline-flex items-center gap-2 text-slate-600 hover:text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition text-sm font-medium cursor-pointer"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-red-50 hover:text-red-600"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="h-4 w-4" />
               Sign Out
             </button>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6">
+        <section className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-600 to-cyan-500 px-6 py-6 text-white shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wider text-blue-100">Workspace</p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight">Manage consultations with confidence</h2>
+          <p className="mt-2 max-w-2xl text-sm text-blue-50">
+            Create slots, monitor appointment status, and keep your schedule up to date from one place.
+          </p>
+        </section>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {headerStats.map(item => (
-            <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4">
+            <div key={item.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-sm text-slate-500">{item.label}</p>
               <p className="text-2xl font-bold text-slate-900 mt-1">{item.value}</p>
             </div>
           ))}
         </div>
 
-        <section className="grid grid-cols-1 lg:grid-cols-[380px,1fr] gap-6">
-          <div className="bg-white border border-slate-200 rounded-xl p-5 h-fit">
-            <div className="flex items-center gap-2 mb-4">
-              <PlusCircle className="w-5 h-5 text-blue-600" />
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-[380px,1fr]">
+          <div className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <PlusCircle className="h-5 w-5 text-blue-600" />
               <h2 className="font-semibold text-slate-900">Create New Slot</h2>
             </div>
 
@@ -232,7 +244,7 @@ export default function DoctorDashboard() {
                   value={slotForm.date}
                   onChange={event => handleSlotInput('date', event.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -247,7 +259,7 @@ export default function DoctorDashboard() {
                     value={slotForm.startTime}
                     onChange={event => handleSlotInput('startTime', event.target.value)}
                     required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -260,7 +272,7 @@ export default function DoctorDashboard() {
                     value={slotForm.endTime}
                     onChange={event => handleSlotInput('endTime', event.target.value)}
                     required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -277,7 +289,7 @@ export default function DoctorDashboard() {
                     value={slotForm.capacity}
                     onChange={event => handleSlotInput('capacity', Number(event.target.value))}
                     required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -288,7 +300,7 @@ export default function DoctorDashboard() {
                     id="slot-type"
                     value={slotForm.type}
                     onChange={event => handleSlotInput('type', event.target.value as SlotType)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="online">Online</option>
                     <option value="offline">Offline</option>
@@ -306,25 +318,29 @@ export default function DoctorDashboard() {
                   value={slotForm.notes}
                   onChange={event => handleSlotInput('notes', event.target.value)}
                   placeholder="Example: Bring your recent reports"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={submittingSlot}
-                className="w-full mt-2 bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60 cursor-pointer"
+                className="mt-2 w-full cursor-pointer rounded-lg bg-blue-600 py-2.5 font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
               >
                 {submittingSlot ? 'Creating Slot...' : 'Create Slot'}
               </button>
             </form>
 
-            {slotMessage && <p className="text-emerald-600 text-sm mt-3">{slotMessage}</p>}
+            {slotMessage && (
+              <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                {slotMessage}
+              </p>
+            )}
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl">
-            <div className="p-5 border-b border-slate-200">
-              <div className="flex flex-wrap gap-3 items-end justify-between">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 p-5">
+              <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <h2 className="font-semibold text-slate-900">My Appointments</h2>
                   <p className="text-sm text-slate-500">View current and previous appointments</p>
@@ -335,15 +351,15 @@ export default function DoctorDashboard() {
                     void loadAppointments()
                     void loadSlots()
                   }}
-                  className="inline-flex items-center gap-2 border border-slate-300 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <RefreshCw className="h-4 w-4" />
                   Refresh
                 </button>
               </div>
             </div>
 
-            <div className="p-5 border-b border-slate-200 bg-slate-50 flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 border-b border-slate-200 bg-slate-50 p-5">
               <div className="min-w-[180px]">
                 <label htmlFor="status-filter" className="block text-xs text-slate-500 mb-1">
                   Filter by status
@@ -352,7 +368,7 @@ export default function DoctorDashboard() {
                   id="status-filter"
                   value={statusFilter}
                   onChange={event => setStatusFilter(event.target.value as AppointmentStatus)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {APPOINTMENT_STATUS_OPTIONS.map(option => (
                     <option key={option.value} value={option.value}>
@@ -370,7 +386,7 @@ export default function DoctorDashboard() {
                   id="timeframe-filter"
                   value={timeframeFilter}
                   onChange={event => setTimeframeFilter(event.target.value as AppointmentTimeframe)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {TIMEFRAME_OPTIONS.map(option => (
                     <option key={option.value} value={option.value}>
@@ -394,48 +410,48 @@ export default function DoctorDashboard() {
 
               {!loadingAppointments &&
                 appointments.map(appointment => (
-                  <div key={appointment.id} className="p-5">
-                    <div className="flex flex-wrap gap-3 justify-between">
+                  <div key={appointment.id} className="p-5 transition hover:bg-slate-50/50">
+                    <div className="flex flex-wrap justify-between gap-3">
                       <div className="space-y-1">
                         <p className="text-sm text-slate-500">Appointment ID</p>
                         <p className="font-medium text-slate-900">{appointment.id}</p>
                       </div>
                       <span
-                        className={`h-fit px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_BADGE_CLASS[appointment.status]}`}
+                        className={`h-fit rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_CLASS[appointment.status]}`}
                       >
                         {STATUS_LABEL[appointment.status]}
                       </span>
                     </div>
 
-                    <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                      <div className="bg-slate-50 rounded-lg p-3">
+                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
                         <p className="text-slate-500">Patient ID</p>
                         <p className="text-slate-900 font-medium mt-1">{appointment.patientId || 'N/A'}</p>
                       </div>
-                      <div className="bg-slate-50 rounded-lg p-3">
+                      <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
                         <p className="text-slate-500">Slot Time</p>
                         <p className="text-slate-900 font-medium mt-1">
                           {formatDateTime(appointment.slot?.date || null, appointment.slot?.startTime || null)}
                         </p>
                       </div>
-                      <div className="bg-slate-50 rounded-lg p-3">
+                      <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
                         <p className="text-slate-500">Mode</p>
                         <p className="text-slate-900 font-medium mt-1 capitalize">
                           {appointment.slot?.type || 'N/A'}
                         </p>
                       </div>
-                      <div className="bg-slate-50 rounded-lg p-3">
+                      <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
                         <p className="text-slate-500">Created</p>
                         <p className="text-slate-900 font-medium mt-1">{formatIso(appointment.createdAt)}</p>
                       </div>
-                      <div className="bg-slate-50 rounded-lg p-3">
+                      <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
                         <p className="text-slate-500">Expires At</p>
                         <p className="text-slate-900 font-medium mt-1">{formatIso(appointment.expiresAt)}</p>
                       </div>
-                      <div className="bg-slate-50 rounded-lg p-3">
+                      <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
                         <p className="text-slate-500">Window</p>
                         <p className="text-slate-900 font-medium mt-1 inline-flex items-center gap-1">
-                          <Clock3 className="w-4 h-4 text-slate-400" />
+                          <Clock3 className="h-4 w-4 text-slate-400" />
                           {appointment.isCurrent ? 'Current' : 'Previous'}
                         </p>
                       </div>
@@ -452,8 +468,8 @@ export default function DoctorDashboard() {
           </div>
         </section>
 
-        <section className="bg-white border border-slate-200 rounded-xl">
-          <div className="p-5 border-b border-slate-200">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 p-5">
             <h2 className="font-semibold text-slate-900">My Created Slots</h2>
             <p className="text-sm text-slate-500">All slots created by you</p>
           </div>
@@ -466,19 +482,19 @@ export default function DoctorDashboard() {
             )}
 
             {slots.map(slot => (
-              <div key={slot.id} className="p-5">
-                <div className="flex flex-wrap gap-3 justify-between">
+              <div key={slot.id} className="p-5 transition hover:bg-slate-50/50">
+                <div className="flex flex-wrap justify-between gap-3">
                   <div>
                     <p className="text-sm text-slate-500">Slot ID</p>
                     <p className="font-medium text-slate-900">{slot.id}</p>
                   </div>
-                  <span className="h-fit px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize">
+                  <span className="h-fit rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium capitalize text-blue-700">
                     {slot.type || 'N/A'}
                   </span>
                 </div>
 
-                <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-                  <div className="bg-slate-50 rounded-lg p-3">
+                <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
                     <p className="text-slate-500">Date & Time</p>
                     <p className="text-slate-900 font-medium mt-1">
                       {formatDateTime(slot.date, slot.startTime)}
@@ -488,17 +504,17 @@ export default function DoctorDashboard() {
                     </p>
                   </div>
 
-                  <div className="bg-slate-50 rounded-lg p-3">
+                  <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
                     <p className="text-slate-500">Capacity</p>
                     <p className="text-slate-900 font-medium mt-1">{slot.capacity}</p>
                   </div>
 
-                  <div className="bg-slate-50 rounded-lg p-3">
+                  <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
                     <p className="text-slate-500">Booked Count</p>
                     <p className="text-slate-900 font-medium mt-1">{slot.bookedCount}</p>
                   </div>
 
-                  <div className="bg-slate-50 rounded-lg p-3">
+                  <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
                     <p className="text-slate-500">Created At</p>
                     <p className="text-slate-900 font-medium mt-1">{formatIso(slot.createdAt)}</p>
                   </div>
@@ -514,7 +530,9 @@ export default function DoctorDashboard() {
           </div>
         </section>
 
-        {errorMessage && <p className="text-red-600 text-sm">{errorMessage}</p>}
+        {errorMessage && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{errorMessage}</p>
+        )}
       </main>
     </div>
   )
